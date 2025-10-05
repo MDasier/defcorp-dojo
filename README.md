@@ -1,6 +1,6 @@
 # DEFCORP DOJO
 
-![Portada](assets/screenshot.jpg)  
+![Portada](assets/screenshot.png)  
 
 **DEFCORP DOJO** es un juego 2D de naves desarrollado con **Phaser 3**, pensado para mejorar tus habilidades de coordinación, reflejos y estrategia mientras te diviertes.  
 
