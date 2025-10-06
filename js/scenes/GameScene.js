@@ -542,8 +542,8 @@ spawnEnemy() {
 	enemy.setTint(0x414141);
 	}
 
-	// Cada 50 enemigos → un boss
-	if (this.enemyCount % 5 === 0) {
+	// Cada 25 enemigos → un boss
+	if (this.enemyCount % 25 === 0) {
 	if (!this.boss || !this.boss.active) {
 		this.spawnBoss();
 	}
