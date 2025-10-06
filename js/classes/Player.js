@@ -76,6 +76,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 			}
 			this.setAlpha(1);
 		}
+
+		if (this.fuel <= 0) {
+			this.fuel = 0;
+			this.die();
+			return;
+		}
 	}
 
 	takeDamage(amount) {

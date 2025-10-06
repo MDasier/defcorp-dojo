@@ -21,90 +21,92 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.fireRate = 1000; // ms entre disparos
     }
 
-    update(player, time, enemiesGroup) {
-        if (!this.active || !player.active) return;
-    
-        const dx = player.x - this.x;
-        const dy = player.y - this.y;
-        const dist = Math.hypot(dx, dy) || 1;
-    
-        // --- Parámetros ajustables ---
-        const minDist = 120;        // Si está más cerca, se aleja
-        const desiredDist = 250;    // Distancia ideal para orbitar/disparar
-        const maxDist = 600;        // Si está muy lejos, se acerca
-        const orbitFactor = 0.5;    // Cuánto orbita alrededor del jugador
-        const avoidRadius = 100;    // Evitar colisiones entre enemigos
-        const smoothFactor = 0.1;   // Suavizado del cambio de dirección
-    
-        // --- Vectores base ---
-        let steerX = 0, steerY = 0;
-    
-        // --- 1️⃣ SEEK o FLEE ---
-        if (dist > desiredDist + 50) {
-            // demasiado lejos → acercarse
-            steerX += dx / dist;
-            steerY += dy / dist;
-        } else if (dist < desiredDist - 50) {
-            // demasiado cerca → alejarse
-            steerX -= dx / dist;
-            steerY -= dy / dist;
-        } else {
-            // rango ideal → orbitar suavemente
-            steerX += (-dy / dist) * orbitFactor;
-            steerY += (dx / dist) * orbitFactor;
-        }
-    
-        // --- 2️⃣ esquivar otros enemigos ---
-        enemiesGroup.children.each(e => {
-            if (e === this || !e.active) return;
-            const ex = this.x - e.x;
-            const ey = this.y - e.y;
-            const d = Math.hypot(ex, ey);
-            if (d < avoidRadius && d > 0) {
-                steerX += ex / d * (1 - d / avoidRadius); // más fuerza cuanto más cerca
-                steerY += ey / d * (1 - d / avoidRadius);
+        update(player, time, enemiesGroup) {
+            
+            let currentSpeed = this.speed;
+            if (!this.active || !player.active) return;
+        
+            const dx = player.x - this.x;
+            const dy = player.y - this.y;
+            const dist = Math.hypot(dx, dy) || 1;
+        
+            // --- Parámetros ajustables ---
+            const desiredDist = 250;
+            const margin = 50;
+            const orbitFactor = Phaser.Math.FloatBetween(0.3, 0.6);  // cada enemigo puede variar su órbita
+            const avoidRadius = 100;
+            const smoothFactor = 0.08;  // suavizado de movimiento
+            const jitterStrength = 0.2;  
+        
+            // --- Decide sentido de órbita (1 = CW, -1 = CCW) ---
+            if (!this.orbitDirection) this.orbitDirection = Phaser.Math.RND.pick([1, -1]);
+        
+            // --- Vector de movimiento base ---
+            let steerX = 0, steerY = 0;
+        
+            // --- SEEK / FLEE ---
+            if (dist > desiredDist + margin) {
+                currentSpeed *= 1.6;
+                steerX += dx / dist;  // acercarse
+                steerY += dy / dist;
+            } else if (dist < desiredDist - margin) {
+                currentSpeed *= 1.3;
+                steerX -= dx / dist;  // alejarse
+                steerY -= dy / dist;
+            } else {
+                // distancia ideal → orbitar
+                currentSpeed *= 1.1;
+                steerX += (-dy / dist) * orbitFactor * this.orbitDirection;
+                steerY += (dx / dist) * orbitFactor * this.orbitDirection;
             }
-        });
-    
-        // --- 3️⃣ PEQUEÑO RUIDO ORGÁNICO ---
-        if (!this.nextJitterTime || time > this.nextJitterTime) {
-            this.jitterX = Phaser.Math.FloatBetween(-0.2, 0.2);
-            this.jitterY = Phaser.Math.FloatBetween(-0.2, 0.2);
-            this.nextJitterTime = time + Phaser.Math.Between(500, 1000);
-        }
-        steerX += this.jitterX;
-        steerY += this.jitterY;
-    
-        // --- Normalizar vector final ---
-        const steerLen = Math.hypot(steerX, steerY);
-        if (steerLen > 0) {
-            steerX /= steerLen;
-            steerY /= steerLen;
-        }
-    
-        // --- Aplicar velocidad con suavizado ---
-        const targetVx = steerX * this.speed;
-        const targetVy = steerY * this.speed;
-    
-        const vx = Phaser.Math.Linear(this.body.velocity.x, targetVx, smoothFactor);
-        const vy = Phaser.Math.Linear(this.body.velocity.y, targetVy, smoothFactor);
-    
-        this.setVelocity(vx, vy);
-    
-        // --- Rotar hacia dirección de movimiento ---
-        const angle = Math.atan2(vy, vx);
-        this.setRotation(angle);
-    
-        // --- 4️⃣ Disparo ---
-        if (dist < 500 && time > this.lastShot) {
-            const angleToPlayer = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
-            const enemyRotationDeg = Phaser.Math.RadToDeg(this.rotation);
-            if (Math.abs(Phaser.Math.Angle.WrapDegrees(angleToPlayer - enemyRotationDeg)) < 20) {
+        
+            // --- Evitar otros enemigos ---
+            enemiesGroup.children.each(e => {
+                if (e === this || !e.active) return;
+                const ex = this.x - e.x;
+                const ey = this.y - e.y;
+                const d = Math.hypot(ex, ey);
+                if (d < avoidRadius && d > 0) {
+                    steerX += ex / d * (1 - d / avoidRadius);
+                    steerY += ey / d * (1 - d / avoidRadius);
+                }
+            });
+        
+            // --- Jitter aleatorio para romper patrones ---
+            if (!this.nextJitterTime || time > this.nextJitterTime) {
+                this.jitterX = Phaser.Math.FloatBetween(-jitterStrength, jitterStrength);
+                this.jitterY = Phaser.Math.FloatBetween(-jitterStrength, jitterStrength);
+                this.nextJitterTime = time + Phaser.Math.Between(400, 900);
+            }
+            steerX += this.jitterX;
+            steerY += this.jitterY;
+        
+            // --- Normalizar vector ---
+            const steerLen = Math.hypot(steerX, steerY);
+            if (steerLen > 0) {
+                steerX /= steerLen;
+                steerY /= steerLen;
+            }
+        
+            // --- Aplicar velocidad suavizada ---
+            const targetVx = steerX * currentSpeed;
+            const targetVy = steerY * currentSpeed;
+            this.setVelocity(
+                Phaser.Math.Linear(this.body.velocity.x, targetVx, smoothFactor),
+                Phaser.Math.Linear(this.body.velocity.y, targetVy, smoothFactor)
+            );
+        
+            // --- Rotar hacia dirección de movimiento ---
+            this.setRotation(Math.atan2(this.body.velocity.y, this.body.velocity.x));
+        
+            // --- Disparo siempre activo si jugador en rango ---
+            if (dist < 500 && time > this.lastShot) {
                 this.shoot();
                 this.lastShot = time + this.fireRate;
             }
         }
-    }
+        
+    
     
 
     shoot() {
@@ -121,19 +123,40 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         setTimeout(() => this.clearTint(), 100);
     
         if (this.hp <= 0) {
+            // Decidir aleatoriamente qué soltar
             if (this.isSpecial) {
-                this.dropHealthItem();
+                const rand = Phaser.Math.Between(0, 1); // 0 = HP, 1 = Fuel
+                if (rand === 0) {
+                    this.dropHealthItem();
+                } else {
+                    this.dropFuelItem();
+                }
             }
             this.destroy();
         }
-    }
-    
+    }    
 
     dropHealthItem() {
         const item = this.scene.healthItems.create(this.x, this.y, 'shield');
         item.setScale(0.1);
         item.setTint(0x00ff00); // verde = salud
         item.setData('type', 'health');
+        item.body.setAllowGravity(false);
+    
+        // Añadimos una pequeña animación de aparición
+        this.scene.tweens.add({
+            targets: item,
+            scale: { from: 0.1, to: 0.15 },
+            duration: 300,
+            yoyo: true
+        });
+    }
+
+    dropFuelItem() {
+        const item = this.scene.fuelItems.create(this.x, this.y, 'shield');
+        item.setScale(0.1);
+        item.setTint(0xffa500); // naranja = fuel
+        item.setData('type', 'fuel');
         item.body.setAllowGravity(false);
     
         // Añadimos una pequeña animación de aparición

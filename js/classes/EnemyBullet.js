@@ -5,6 +5,9 @@ export default class EnemyBullet extends Phaser.Physics.Arcade.Sprite {
 		scene.physics.add.existing(this);
 		this.speed = 300;
         this.shooter = null;
+
+        this.setSize(0.2, 0.2);
+
 	}
 
 	fire(x, y, angle, shooter) {
