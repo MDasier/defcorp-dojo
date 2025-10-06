@@ -19,6 +19,7 @@ preload() {
 	// --- Audio ---
     this.load.audio('bgMusic', 'assets/audio/music.mp3');
     this.load.audio('shieldSound', 'assets/audio/shield.mp3');
+	//this.load.audio('errorBeep', 'assets/sounds/error-beep.mp3');
 }
 
 create() {
@@ -61,6 +62,18 @@ create() {
 	// Teclas disponibles
 	this.cursors = this.input.keyboard.addKeys('W,A,S,D,TAB,ESC');
 	this.lastShot = 0;
+
+	// --- EASTER EGG: secuencia de teclas "ADADADAD" ---
+	this.secretSequence = ['A', 'D', 'A', 'D', 'A', 'D', 'A', 'D'];
+	this.sequenceIndex = 0;
+
+	this.input.keyboard.on('keydown', (event) => {
+		const key = event.key.toUpperCase();
+
+		if (key === 'A' || key === 'D') {
+			this.handleSecretInput(key);
+		}
+	});
 
 	// HUD Escudo
 	this.shieldHUDIcon = this.add.image(10, 10, 'shield').setScale(0.1).setScrollFactor(0).setOrigin(0);
@@ -137,6 +150,52 @@ create() {
 	this.physics.add.overlap(this.player, this.healthItems, this.collectHealth, null, this);
 
 }
+	handleSecretInput(key) {
+		// Comprobar si la tecla presionada es la esperada
+		if (key === this.secretSequence[this.sequenceIndex]) {
+			this.sequenceIndex++;
+
+			// Si llega al final, se activa el easter egg
+			if (this.sequenceIndex === this.secretSequence.length) {
+				this.triggerEasterEgg();
+				this.sequenceIndex = 0;
+			}
+		} else {
+			// ❌ Si se equivoca, reiniciar el progreso
+			this.sequenceIndex = 0;
+
+			// Pero... si la tecla actual es 'A', podría ser el inicio de una nueva secuencia
+			if (key === 'A') {
+				this.sequenceIndex = 1;
+			}
+		}
+	}
+
+	triggerEasterEgg() {
+		if (this.scene.isActive('EEScene')) return;
+
+		// 🎵 Pitido de error
+		//this.sound.play('errorBeep', { volume: 0.5 });
+
+		// 💥 Efecto glitch visual
+		this.cameras.main.flash(150, 255, 0, 0);       // flash rojo
+		this.cameras.main.shake(400, 0.02);            // sacudida leve
+
+		// 🔁 Parpadeo tipo interferencia
+		this.time.addEvent({
+			delay: 50,
+			repeat: 10,
+			callback: () => {
+				this.cameras.main.flash(30, Phaser.Math.Between(150, 255), 0, 0);
+			}
+		});
+
+		// Pequeña pausa antes de lanzar la escena del error
+		this.time.delayedCall(600, () => {
+			this.scene.pause();
+			this.scene.launch('EEScene');
+		});
+	}
 
 update(time) {
 	this.player.update(this.cursors, this.input.mousePointer, time, this);

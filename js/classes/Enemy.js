@@ -54,7 +54,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
             steerY += (dx / dist) * orbitFactor;
         }
     
-        // --- 2️⃣ AVOID otros enemigos ---
+        // --- 2️⃣ esquivar otros enemigos ---
         enemiesGroup.children.each(e => {
             if (e === this || !e.active) return;
             const ex = this.x - e.x;
