@@ -97,7 +97,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 	
 		// Activar invencibilidad
 		this.invincible = true;
-		this.invincibleTimer = this._scene.time.now + 2000; // 2 segundos
+		this.invincibleTimer = this._scene.time.now + 800;
 	
 		if (!this.invincibleTween) {
 			this.invincibleTween = this._scene.tweens.add({

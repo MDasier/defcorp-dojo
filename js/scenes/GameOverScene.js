@@ -7,10 +7,10 @@ export default class GameOverScene extends Phaser.Scene {
         const { width, height } = this.scale;
     
         // Detener la música de fondo si está sonando
-        const gameScene = this.scene.get('GameScene');
-        if (gameScene && gameScene.bgMusic) {
-            gameScene.bgMusic.stop(); // detiene y resetea la música
-        }
+        const musicScene = this.scene.get('MusicScene');
+		if (musicScene) {
+			musicScene.pauseMusic(); // pausa la música
+		}
     
         // Fondo semi-transparente
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8);
@@ -34,12 +34,30 @@ export default class GameOverScene extends Phaser.Scene {
     
         // Botones
         const btnRestart = this.createButton(width / 2, height / 2 + 60, 200, 50, 'REINICIAR', () => {
-            // Iniciar GameScene con la música reseteada
-            this.scene.start('GameScene', { playMusic: true });
-        });
+            const musicScene = this.scene.get('MusicScene');
+            if (musicScene) {
+                musicScene.stopMusic();
+                musicScene.playMusic();
+            } else {
+                this.scene.launch('MusicScene');
+            }
+        
+            if (this.scene.isActive('GameScene')) {
+                this.scene.stop('GameScene');
+                this.scene.remove('GameScene');
+            }
+        
+            this.scene.start('GameScene');
+        });      
     
-        const btnMenu = this.createButton(width / 2, height / 2 + 130, 200, 50, 'MENÚ PRINCIPAL', () => {
-            this.scene.start('MenuScene');
+        const btnMenu = this.createButton(width / 2, height / 2 + 130, 200, 50, 'SALIR', () => {
+            try {
+                window.close();
+            } catch (e) {
+                console.warn("No se puede cerrar la pestaña por seguridad del navegador");
+                // 👉 alternativa: volver al menú
+                this.scene.start('MenuScene');
+            }
         });
     }
     
