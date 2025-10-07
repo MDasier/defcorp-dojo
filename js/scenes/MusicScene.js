@@ -34,4 +34,15 @@ export default class MusicScene extends Phaser.Scene {
             this.bgMusic.resume();
         }
     }
+
+    stopsMusic() {
+        if (this.bgMusic) {
+            this.bgMusic.stop();
+        }
+    }
+    playMusic() {
+        if (this.bgMusic && !this.bgMusic.isPlaying) {
+            this.bgMusic.play();
+        }
+    }
 }

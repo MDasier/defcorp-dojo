@@ -14,7 +14,7 @@ export default class Bullet extends Phaser.Physics.Arcade.Sprite {
     this.setPosition(x, y);
     this.setActive(true);
     this.setVisible(true);
-
+	if (this.scene.player.shotColor) this.setTint(this.scene.player.shotColor);
     if (this.body) {
       this.body.enable = true;
       this.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);

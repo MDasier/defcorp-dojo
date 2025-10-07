@@ -34,21 +34,25 @@ export default class GameOverScene extends Phaser.Scene {
     
         // Botones
         const btnRestart = this.createButton(width / 2, height / 2 + 60, 200, 50, 'REINICIAR', () => {
+            // Detener y reiniciar música
             const musicScene = this.scene.get('MusicScene');
             if (musicScene) {
-                musicScene.stopMusic();
+                musicScene.stopsMusic();
                 musicScene.playMusic();
             } else {
                 this.scene.launch('MusicScene');
             }
         
+            // Detener cualquier instancia previa de GameScene
             if (this.scene.isActive('GameScene')) {
                 this.scene.stop('GameScene');
                 this.scene.remove('GameScene');
             }
         
+            // Lanzar una nueva instancia limpia de GameScene
             this.scene.start('GameScene');
-        });      
+        });
+           
     
         const btnMenu = this.createButton(width / 2, height / 2 + 130, 200, 50, 'SALIR', () => {
             try {

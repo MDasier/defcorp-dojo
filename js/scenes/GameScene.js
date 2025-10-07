@@ -12,12 +12,17 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image("ship", "assets/ship.webp");
+    this.load.image("LIGHT", "assets/ship.webp");
+    this.load.image("MEDIUM", "assets/enemy.webp");
+    this.load.image("DEFAULT", "assets/enemy_1.webp");
     this.load.image("enemy1", "assets/enemy.webp");
     this.load.image("enemy2", "assets/enemy_1.webp");
     this.load.image("boss", "assets/boss.png");
     this.load.image("bullet", "assets/bullet.png");
     this.load.image("shield", "assets/shield.png");
+	this.load.image('emp', 'assets/shield.png');
+	this.load.image('quantum', 'assets/shield.png');
+
     //this.load.image("bg1", "assets/bg1.png");
     //this.load.image("bg2", "assets/bg2.jpg");
     this.load.image("bg3", "assets/bg3.png");
@@ -60,7 +65,10 @@ export default class GameScene extends Phaser.Scene {
 		if (this.shieldHUDIcon) this.shieldHUDIcon.setPosition(10, 10);
 		if (this.shieldHUDText) this.shieldHUDText.setPosition(50, 10);
 	  });
-	  
+
+	// Cargar configuración guardada (por si viene desde MenuScene)
+	const saved = sessionStorage.getItem('settings');
+	this.settings = saved ? JSON.parse(saved) : { ship: 'DEFAULT', ability: 'SHIELD' };
 
     // Fondo
     this.bgLayers = [
@@ -70,9 +78,11 @@ export default class GameScene extends Phaser.Scene {
     ];
 
     // Jugador
-    this.player = new Player(this, cx, cy);
+    this.player = new Player(this, cx, cy, this.settings.ship);
     this.player.setSize(this.player.width * 0.6, this.player.height * 0.6); // hitbox 60% del sprite
     this.player.setOffset(this.player.width * 0.2, this.player.height * 0.2); // centrar la hitbox
+	this.player.shotColor = this.settings.shotColor ?? '';
+	this.player.shipColor = this.settings.shipColor ?? '';
 
     // Lista de balas
     this.bullets = this.physics.add.group({
@@ -149,7 +159,7 @@ export default class GameScene extends Phaser.Scene {
       .setScrollFactor(0);
 
     this.HPHUDIcon = this.add
-      .image(10, this.scale.height - 80, "ship")
+      .image(10, this.scale.height - 80, this.player.texture.key)
       .setScale(0.1)
       .setScrollFactor(0)
       .setOrigin(0);
@@ -199,11 +209,33 @@ export default class GameScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.ESC
     );
 
-    // Eventos
-    this.input.on("pointerdown", (pointer) => {
-      if (pointer.rightButtonDown()) this.player.activateShield(this);
-      else this.shoot(pointer);
-    });
+	// Detectar si el jugador mantiene presionado el clic izquierdo
+	this.input.on("pointerdown", (pointer) => {
+		if (pointer.rightButtonDown()) {
+			switch (this.settings.ability) {
+				case 'SHIELD':
+				this.player.activateShield(this);
+				break;
+				case 'QUANTUM-JUMP':
+				this.player.activateQuantumJump(this);
+				break;
+				case 'EMP':
+				this.player.activateEMP(this);
+				break;
+				default:
+				this.player.activateShield(this);
+				break;
+			}
+		} else {
+			this.isShooting = true;
+		}
+	});  
+	
+	this.input.on("pointerup", (pointer) => {
+		if (!pointer.rightButtonDown()) {
+		this.isShooting = false;
+		}
+	});
 
     this.time.addEvent({
       delay: 1500,
@@ -388,18 +420,18 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  update(time) {
+  /*update(time) {
     this.player.update(this.cursors, this.input.mousePointer, time, this);
-
+	if (this.isShooting) {
+		this.shoot(this.input.mousePointer);
+	}
     // Actualizar HUD HP
-    // Porcentaje de HP
-    const hpPercent = Phaser.Math.Clamp(this.player.hp / 100, 0, 1);
-    // Interpolación de color: de blanco (0xffffff) a rojo (0xff0000)
-    const r = 0xff;
-    const g = Math.floor(0xff * hpPercent); // disminuye hacia 0 cuando HP baja
-    const b = Math.floor(0xff * hpPercent); // disminuye hacia 0 cuando HP baja
-    const tint = (r << 16) | (g << 8) | b;
-    this.HPHUDIcon.setTint(tint);
+    const hpPercent = Phaser.Math.Clamp(stats.hp / stats.maxHp, 0, 1);
+	const r = 0xff;
+	const g = Math.floor(0xff * hpPercent);
+	const b = Math.floor(0xff * hpPercent);
+	const tint = (r << 16) | (g << 8) | b;
+	this.HPHUDIcon.setTint(tint);
 
     // Actualizar boss
     if (this.boss) {
@@ -428,22 +460,27 @@ export default class GameScene extends Phaser.Scene {
     // Alerta HP y/o Fuel al límite
 
     // Actualizar HUD Fuel
-    //this.fuelHUDText.setText(`${'Fuel: ' + this.player.fuel}`);
-    const fuelPercent = this.player.fuel / 1000; // fuel máximo = 1000
-    this.fuelBar.width = 100 * fuelPercent;
-    if (fuelPercent > 0.6) this.fuelBar.fillColor = 0x00ff00;
-    else if (fuelPercent > 0.3) this.fuelBar.fillColor = 0xffff00;
-    else this.fuelBar.fillColor = 0xff0000;
+    const fuelPercent = stats.fuel / 1000; // fuel máximo = 1000
+	this.fuelBar.width = 100 * fuelPercent;
+	if (fuelPercent > 0.6) this.fuelBar.fillColor = 0x00ff00;
+	else if (fuelPercent > 0.3) this.fuelBar.fillColor = 0xffff00;
+	else this.fuelBar.fillColor = 0xff0000;
 
     // Actualizar HUD escudo
-    this.shieldHUDText.setText(`${this.player.shieldUses}`);
-    if (this.player.shieldActive) {
-      this.shieldHUDIcon.setTint(0x00ff00, 0.5); // 'verde' si activo
-    } else if (this.player.shieldUses > 0) {
-      this.shieldHUDIcon.setTint(0x414141); // 'gris' si listo
-    } else {
-      this.shieldHUDIcon.setTint(0xff0000, 0.5); // 'rojo' si agotado
-    }
+	this.shieldHUDText.setText(`${stats.shieldUses}`);
+	if (stats.special === 'SHIELD') {
+		if (this.player.shieldActive) {
+			this.shieldHUDIcon.setTint(0x00ff00, 0.5); // activo
+		} else if (stats.shieldUses > 0) {
+			this.shieldHUDIcon.setTint(0x414141); // listo
+		} else {
+			this.shieldHUDIcon.setTint(0xff0000, 0.5); // agotado
+		}
+	} else {
+		// otras habilidades (EMP o Quantum) muestran icono diferente
+		this.shieldHUDIcon.setTexture(stats.special.toLowerCase());
+		this.shieldHUDText.setText(stats.special === 'EMP' ? '' : '');
+	}
 
     // HUD visible mientras se mantiene TAB presionado
     this.hudVisible = this.cursors.TAB.isDown;
@@ -451,12 +488,12 @@ export default class GameScene extends Phaser.Scene {
     this.hudText.setVisible(this.hudVisible);
 
     if (this.hudVisible) {
-      this.hudText.setText(
-        `🧩 HUD\n\n` +
-          `Score: ${this.player.score}\n` +
-          `HP: ${this.player.hp}\n` +
-          `SHIELD: ${this.player.shieldActive ? "Activo" : "Listo"}`
-      );
+		this.hudText.setText(
+		`🧩 HUD\n\n` +
+		`Score: ${this.player.score}\n` +
+		`HP: ${this.player.hp}\n` +
+		`${this.player.ability}: ${this.player.ability === 'SHIELD' ? (this.player.shieldActive ? 'Activo' : 'Listo') : 'Listo'}`
+		);		  
     }
 
     // ESC menú pausa
@@ -480,7 +517,89 @@ export default class GameScene extends Phaser.Scene {
       e.update(this.player, time, this.enemies)
     );
     this.enemyBullets.children.each((eb) => eb.update());
-  }
+  }*/
+  update(time) {
+		// Actualizar jugador
+		this.player.update(this.cursors, this.input.mousePointer, time, this);
+		if (this.isShooting) this.shoot(this.input.mousePointer);
+
+		// Obtener estadísticas del jugador
+		const stats = this.player.getStats();
+
+		// --- HUD HP ---
+		const hpPercent = Phaser.Math.Clamp(stats.hp / stats.maxHp, 0, 1);
+		const r = 0xff;
+		const g = Math.floor(0xff * hpPercent);
+		const b = Math.floor(0xff * hpPercent);
+		const tint = (r << 16) | (g << 8) | b;
+		this.HPHUDIcon.setTint(tint);
+
+		// --- HUD Fuel ---
+		const fuelPercent = stats.fuel / 1000; // maxFuel = 1000
+		this.fuelBar.width = 100 * fuelPercent;
+		if (fuelPercent > 0.6) this.fuelBar.fillColor = 0x00ff00;
+		else if (fuelPercent > 0.3) this.fuelBar.fillColor = 0xffff00;
+		else this.fuelBar.fillColor = 0xff0000;
+
+		// --- HUD Escudo / Habilidad ---
+		this.shieldHUDText.setText(`${stats.specialSkillUses}`);
+		if (stats.special === 'SHIELD') {
+			if (this.player.shieldActive) this.shieldHUDIcon.setTint(0x00ff00, 0.5); // activo
+			else if (stats.specialSkillUses > 0) this.shieldHUDIcon.setTint(0x414141); // listo
+			else this.shieldHUDIcon.setTint(0xff0000, 0.5); // agotado
+		} else {
+			this.shieldHUDIcon.setTexture(stats.special.toLowerCase());
+			this.shieldHUDText.setText('');
+		}
+
+		// --- HUD Boss ---
+		if (this.boss && this.boss.active) {
+			this.HPBOSSHUDText.setVisible(true);
+			this.HPBOSSHUDIcon.setVisible(true);
+			const hpBossPercent = Phaser.Math.Clamp(this.boss.hp / 400, 0, 1);
+			const rb = 0xff;
+			const gb = Math.floor(0xff * hpBossPercent);
+			const bb = Math.floor(0xff * hpBossPercent);
+			const tintb = (rb << 16) | (gb << 8) | bb;
+			this.HPBOSSHUDIcon.setTint(tintb);
+			this.boss.update(time, this.player, this.enemyBullets);
+		} else if (this.HPBOSSHUDText) {
+			this.HPBOSSHUDText.setVisible(false);
+			this.HPBOSSHUDIcon.setVisible(false);
+		}
+
+		// --- HUD visible con TAB ---
+		this.hudVisible = this.cursors.TAB.isDown;
+		this.hud.setVisible(this.hudVisible);
+		this.hudText.setVisible(this.hudVisible);
+		if (this.hudVisible) {
+			this.hudText.setText(
+				`🧩 HUD\n\n` +
+				`Score: ${this.player.score}\n` +
+				`HP: ${stats.hp}\n` +
+				`${stats.special}: ${stats.special === 'SHIELD' ? (this.player.shieldActive ? 'Activo' : 'Listo') : 'Listo'}`
+			);
+		}
+
+		// --- ESC Pausa ---
+		if (Phaser.Input.Keyboard.JustDown(this.cursors.ESC)) {
+			if (this.bgMusic && this.bgMusic.isPlaying) this.bgMusic.pause();
+			this.scene.launch("PauseScene");
+			this.scene.pause();
+		}
+
+		// --- Fondo parallax ---
+		this.bgLayers.forEach((layer, i) => {
+			layer.tilePositionX += this.player.body.velocity.x * 0.002 * (i + 1);
+			layer.tilePositionY += this.player.body.velocity.y * 0.002 * (i + 1);
+		});
+
+		// --- Actualizar balas y enemigos ---
+		this.bullets.children.each(b => b.update(time));
+		this.enemies.children.each(e => e.update(this.player, time, this.enemies));
+		this.enemyBullets.children.each(eb => eb.update());
+	}
+
 
   shoot(pointer) {
     const time = this.time.now;
@@ -496,7 +615,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (bullet) bullet.fire(this.player.x, this.player.y, angle);
 
-    this.lastShot = time + 200;
+    this.lastShot = time + 300;
   }
 
   collectItem(player, item) {
@@ -509,14 +628,15 @@ export default class GameScene extends Phaser.Scene {
 
     let text = "";
     let color = "";
-
+	let rngHP = Phaser.Math.Between(15, 55);
+	let rngFuel = Phaser.Math.Between(100, 450);
     if (type === "health") {
-      player.hp = Math.min(player.hp + 10, 100);
-      text = "+10 HP";
+      player.hp = Math.min(player.hp + rngHP, 100);
+      text = "+ " + rngHP + " HP";
       color = "#00ff00"; // verde
     } else if (type === "fuel") {
-      player.fuel = Math.min(player.fuel + 100, 1000);
-      text = "+100 Fuel";
+      player.fuel = Math.min(player.fuel + rngFuel, 1000);
+      text = "+ " + rngFuel + " Fuel";
       color = "#ffa500"; // naranja
     }
 
