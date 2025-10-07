@@ -58,7 +58,7 @@ export default class MenuScene extends Phaser.Scene {
 		// Valores por defecto
 		this.settings = {
 			volume: volumen,
-			difficulty: 'NOOB',
+			difficulty: 'ERODD',
 			ship: 'DEFAULT',
 			ability: 'SHIELD'
 		};
