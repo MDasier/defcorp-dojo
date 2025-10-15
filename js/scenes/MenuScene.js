@@ -21,31 +21,21 @@ export default class MenuScene extends Phaser.Scene {
 		const logo = this.add.image(width / 2, 200, 'logo')
 		.setOrigin(0.5)
 		.setScale(0.1);
-		
-		/*this.title = this.add.text(width / 2, 130, 'DEFCORP CITIZEN', {
-			fontSize: '60px',
-			fontStyle: 'bold',
-			fontFamily: 'monospace',
-			color: '#00ccff',
-			stroke: '#000000',
-			strokeThickness: 6,
-			shadow: { offsetX: 2, offsetY: 2, color: '#000', blur: 3, stroke: true, fill: true }
-		}).setOrigin(0.5);*/
-		
-		// Animación pulsante del título
-		/*this.tweens.add({
-			targets: this.title,
-			scale: 1.1,
-			yoyo: true,
-			repeat: -1,
-			duration: 2000,
-			ease: 'Sine.easeInOut'
-		});*/
 
 		// Botones
 		const btnPlay = this.createButton(width / 2, 290, 200, 50, 'JUGAR', () => {
-			this.scene.start('GameScene', this.settings); // solo cambia de escena, la música sigue sonando
-		});		
+			if (this.scene.isActive('GameScene')) {
+				if(this.scene.isActive('MusicScene')) {
+					this.scene.get('MusicScene').resumeMusic();
+				}
+				this.scene.restart('GameScene');
+			} else {
+				if(this.scene.isActive('MusicScene')) {
+					this.scene.get('MusicScene').resumeMusic();
+				}
+				this.scene.start('GameScene', this.settings);
+			}
+		});
 		
 		const btnOptions = this.createButton(width / 2, 360, 200, 50, 'OPCIONES', () => {
 			this.scene.start('OptionsScene', this.settings);
@@ -59,7 +49,7 @@ export default class MenuScene extends Phaser.Scene {
 		this.settings = {
 			volume: volumen,
 			difficulty: 'ERODD',
-			ship: 'DEFAULT',
+			ship: 'LIGHT',
 			ability: 'SHIELD'
 		};
 	}

@@ -45,8 +45,7 @@ export default class GameOverScene extends Phaser.Scene {
         
             // Detener cualquier instancia previa de GameScene
             if (this.scene.isActive('GameScene')) {
-                this.scene.stop('GameScene');
-                this.scene.remove('GameScene');
+                this.scene.restart('GameScene');
             }
         
             // Lanzar una nueva instancia limpia de GameScene
@@ -59,7 +58,6 @@ export default class GameOverScene extends Phaser.Scene {
                 window.close();
             } catch (e) {
                 console.warn("No se puede cerrar la pestaña por seguridad del navegador");
-                // 👉 alternativa: volver al menú
                 this.scene.start('MenuScene');
             }
         });
