@@ -180,7 +180,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 		this.shieldSprite.setAlpha(0.4); // transparente mientras activo
 		this.shieldCD = scene.time.now + 2000;
 		this.specialSkillUses--;
-
 	}
 	
 	deactivateShield() {

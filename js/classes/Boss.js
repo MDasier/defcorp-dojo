@@ -86,126 +86,135 @@ export default class Boss extends Phaser.Physics.Arcade.Sprite {
   }
 
   update(time, player, enemyBulletsGroup) {
-    if (!this.active) return;
+    if (!this.active || !player.active) return;
 
     const scene = this.scene;
-    const distance = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
-    const angleToPlayer = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
-
-    // 🔄 Decisión táctica cada cierto tiempo
-    if (!this.nextDecisionTime || time > this.nextDecisionTime) {
-        this.nextDecisionTime = time + Phaser.Math.Between(2000, 4000);
-
-        // Decidir estado según distancia
-        if (distance > 600) {
-            this.state = "APPROACH";
-        } else if (distance < 300) {
-            this.state = "RETREAT";
-        } else {
-            const rand = Phaser.Math.Between(0, 100);
-            if (rand < 40) this.state = "FLANK";
-            else if (rand < 75) this.state = "PATROL";
-            else this.state = "EVADE";
-        }
-
-        // Objetivo temporal para movimiento lateral/flanqueo
-        const side = Phaser.Math.Between(0, 1) ? 1 : -1;
-        const lateralOffset = Phaser.Math.DegToRad(60) * side;
-        this.targetAngle = angleToPlayer + lateralOffset;
-    }
-
-    // ⚙️ Acción según estado
-    switch (this.state) {
-        case "APPROACH":
-            // Se acerca suavemente manteniendo lateralidad
-            this.targetAngle = Phaser.Math.Angle.RotateTo(this.targetAngle, angleToPlayer, 0.02);
-            this.speed = 70;
-            break;
-
-        case "RETREAT":
-            // Se aleja manteniendo los lados apuntando al jugador
-            this.targetAngle = Phaser.Math.Angle.Wrap(angleToPlayer + Math.PI + Phaser.Math.FloatBetween(-0.3, 0.3));
-            this.speed = 120;
-            break;
-
-        case "FLANK":
-            // Flanqueo lateral con ligera oscilación
-            this.targetAngle += Phaser.Math.FloatBetween(-0.02, 0.02);
-            this.speed = 90;
-            break;
-
-        case "EVADE":
-            // Movimiento evasivo rápido y aleatorio
-            this.targetAngle += Phaser.Math.FloatBetween(-0.5, 0.5);
-            this.speed = 140;
-            break;
-
-        case "PATROL":
-        default:
-            // Patrulla suavemente
-            this.targetAngle += Phaser.Math.FloatBetween(-0.02, 0.02);
-            this.speed = 50;
-            break;
-    }
-
-    // 💨 Movimiento suave hacia el targetAngle
-    this.moveAngle = Phaser.Math.Angle.RotateTo(this.moveAngle, this.targetAngle, 0.03);
-    this.body.setVelocity(
-        Math.cos(this.moveAngle) * this.speed,
-        Math.sin(this.moveAngle) * this.speed
+    const distance = Phaser.Math.Distance.Between(
+      this.x,
+      this.y,
+      player.x,
+      player.y
+    );
+    const angleToPlayer = Phaser.Math.Angle.Between(
+      this.x,
+      this.y,
+      player.x,
+      player.y
     );
 
-    // 🔁 Mantener rotación hacia el jugador (para disparo desde ambos lados)
-	this.rotation = angleToPlayer - Phaser.Math.DegToRad(90); // lateral perfecto para 8 torretas
+    // 🔄 Decisión táctica cada 3-5 segundos
+    if (!this.nextDecisionTime || time > this.nextDecisionTime) {
+      this.nextDecisionTime = time + Phaser.Math.Between(3000, 5000);
 
-	// 🔄 Ajustar el colisionador según la orientación del boss (simulación rotacional)
-	const angleDeg = Phaser.Math.RadToDeg(this.rotation) % 180;
-	const absAngle = Math.abs(angleDeg);
+      // Elegir estado general
+      if (distance > 600) this.state = "APPROACH";
+      else if (distance < 300) this.state = "RETREAT";
+      else {
+        const rand = Phaser.Math.Between(0, 100);
+        if (rand < 40) this.state = "FLANK";
+        else if (rand < 70) this.state = "PATROL";
+        else this.state = "EVADE";
+      }
 
-	let offsetX = 0;
-	let offsetY = 0;
+      // Decidir orientación del boss (qué lado apunta)
+      const randOrient = Phaser.Math.Between(0, 100);
+      if (randOrient < 60) this.orient = "FRONT";
+      else if (randOrient < 85) this.orient = "BACK";
+      else this.orient = "FLANK";
 
-	// Si está "más acostado" (horizontal)
-	if (absAngle < 45 || absAngle > 135) {
-		this.body.setSize(this.displayWidth * 0.6, this.displayHeight * 0.4);
-		offsetY = -15; // 🔸 subir un poco el colisionador
-	}
-	// Si está "más de pie" (vertical)
-	else {
-		this.body.setSize(this.displayWidth * 0.25, this.displayHeight * 0.9);
-		offsetX = -30; // 🔸 mover ligeramente hacia la izquierda
-	}
+      // Definir ángulo objetivo según orientación
+      if (this.orient === "FRONT") {
+        this.targetAngle = angleToPlayer;
+      } else if (this.orient === "BACK") {
+        this.targetAngle = Phaser.Math.Angle.Wrap(
+          angleToPlayer + Math.PI + Phaser.Math.FloatBetween(-0.2, 0.2)
+        );
+      } else if (this.orient === "FLANK") {
+        const side = Phaser.Math.Between(0, 1) ? 1 : -1;
+        this.targetAngle = angleToPlayer + Phaser.Math.DegToRad(40) * side;
+      }
+    }
 
-	// Mantener el body centrado respecto al sprite, con desplazamiento extra
-	this.body.setOffset(
-		this.displayWidth / 2 - this.body.width / 2 + offsetX,
-		this.displayHeight / 2 - this.body.height / 2 + offsetY
-	);
+    // ⚙️ Ajustar velocidad según estado
+    switch (this.state) {
+      case "APPROACH":
+        this.speed = 50;
+        break;
+      case "RETREAT":
+        this.speed = 60;
+        break;
+      case "FLANK":
+        this.speed = 45;
+        break;
+      case "EVADE":
+        this.speed = 70;
+        break;
+      case "PATROL":
+      default:
+        this.speed = 35;
+        break;
+    }
 
+    // 💨 Movimiento con inercia
+    this.moveAngle = Phaser.Math.Angle.RotateTo(
+      this.moveAngle,
+      this.targetAngle,
+      0.005
+    );
+    const vx = Math.cos(this.moveAngle) * this.speed;
+    const vy = Math.sin(this.moveAngle) * this.speed;
+    this.body.velocity.x = Phaser.Math.Linear(this.body.velocity.x, vx, 0.02);
+    this.body.velocity.y = Phaser.Math.Linear(this.body.velocity.y, vy, 0.02);
 
+    // 🔁 Rotación del sprite solo para torretas según orientación
+    let turretAngle;
+    if (this.orient === "BACK")
+      turretAngle = Phaser.Math.Angle.Wrap(angleToPlayer + Math.PI);
+    else if (this.orient === "FLANK") turretAngle = this.targetAngle;
+    else turretAngle = angleToPlayer;
+
+    this.rotation = Phaser.Math.Angle.RotateTo(
+      this.rotation,
+      turretAngle - Phaser.Math.DegToRad(90),
+      0.005
+    );
+
+    // 🔄 Ajuste del colisionador
+    const angleDeg = Phaser.Math.RadToDeg(this.rotation) % 180;
+    const absAngle = Math.abs(angleDeg);
+    let offsetX = 0,
+      offsetY = 0;
+
+    if (absAngle < 45 || absAngle > 135) {
+      this.body.setSize(this.displayWidth * 0.6, this.displayHeight * 0.4);
+      offsetY = -15;
+    } else {
+      this.body.setSize(this.displayWidth * 0.25, this.displayHeight * 0.9);
+      offsetX = -30;
+    }
+
+    this.body.setOffset(
+      this.displayWidth / 2 - this.body.width / 2 + offsetX,
+      this.displayHeight / 2 - this.body.height / 2 + offsetY
+    );
 
     // 💥 Control de disparo
     this.turretCount = distance < 400 ? this.PDCon : this.PDCoff;
     this.fireRate = distance < 400 ? 1500 : 3500;
-
     if (time > this.lastShot) {
-        this.shoot(enemyBulletsGroup, player);
-        this.lastShot = time + this.fireRate;
+      this.shoot(enemyBulletsGroup, player);
+      this.lastShot = time + this.fireRate;
     }
 
-	// Limitar el boss dentro de la pantalla
-	const halfWidth = this.displayWidth / 2;
-	const halfHeight = this.displayHeight / 2;
+    // 🔒 Mantener dentro de la pantalla
+    const halfWidth = this.displayWidth / 2;
+    const halfHeight = this.displayHeight / 2;
+    const marginX = halfWidth * 0.5;
+    const marginY = halfHeight * 0.5;
 
-	// Definir un margen extra que permita asomar medio cuerpo
-	const marginX = halfWidth * 0.5;   // deja asomar 50% del ancho
-	const marginY = halfHeight * 0.5;  // deja asomar 50% de la altura
-
-	this.x = Phaser.Math.Clamp(this.x, marginX, this.scene.scale.width - marginX);
-	this.y = Phaser.Math.Clamp(this.y, marginY, this.scene.scale.height - marginY);
-
-}
-
+    this.x = Phaser.Math.Clamp(this.x, marginX, scene.scale.width - marginX);
+    this.y = Phaser.Math.Clamp(this.y, marginY, scene.scale.height - marginY);
+  }
 
   shoot(enemyBulletsGroup, player) {
     if (!this.active) return;
@@ -303,7 +312,7 @@ export default class Boss extends Phaser.Physics.Arcade.Sprite {
 
     const homingTime = 4000;
     const interval = 50;
-	bullet.rotation = Phaser.Math.Angle.Between(x, y, player.x, player.y);
+    bullet.rotation = Phaser.Math.Angle.Between(x, y, player.x, player.y);
 
     const timer = bullet.scene.time.addEvent({
       delay: interval,
